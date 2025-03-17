@@ -269,6 +269,36 @@ fn main() {
         )
         .expect("Unable to send monetary config");
 
+    // Product stock
+    client
+        .publish(
+            format!(
+                "{}/sensor/tkpd-{:x}/stock/config",
+                args.ha_mqtt_discovery_topic,
+                HexSlice(&product_hash)
+            ),
+            rumqttc::QoS::AtLeastOnce,
+            true,
+            json!({
+                "origin": {
+                    "name": env!("CARGO_PKG_NAME"),
+                    "support_url": env!("CARGO_PKG_HOMEPAGE"),
+                    "sw_version": env!("CARGO_PKG_VERSION")
+                },
+                "device": {
+                    "identifiers": format!("tkpdprice-{:x}", HexSlice(&product_hash)),
+                    "serial_number": format!("{}/{}", shop_domain, product_key)
+                },
+                "platform": "sensor",
+                "force_update": true,
+                "unique_id": format!("tkpdprice-{:x}-stock", HexSlice(&product_hash)),
+                "state_topic": format!("tkpdprice/{:x}/stock", HexSlice(&product_hash)),
+                "name": null
+            })
+            .to_string(),
+        )
+        .expect("Unable to send stock config");
+
     // Send data
     client
         .publish(
@@ -284,6 +314,14 @@ fn main() {
             rumqttc::QoS::AtLeastOnce,
             true,
             product_price.to_string(),
+        )
+        .expect("Unable to update price value");
+    client
+        .publish(
+            format!("tkpdprice/{:x}/stock", HexSlice(&product_hash)),
+            rumqttc::QoS::AtLeastOnce,
+            true,
+            product_stock.to_string(),
         )
         .expect("Unable to update price value");
 
