@@ -13,7 +13,7 @@ use std::time::Duration;
 use blake2::Blake2sVar;
 use blake2::digest::VariableOutput;
 use clap::{Parser, ValueHint, command};
-use log::{error, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 use reqwest::blocking::Client;
 use reqwest::header::{ACCEPT, HOST, HeaderMap, HeaderValue, REFERER};
 use rumqttc::MqttOptions;
@@ -107,7 +107,8 @@ fn main() {
     hasher.write_all(shop_domain.as_bytes()).unwrap();
     hasher.write_all(product_key.as_bytes()).unwrap();
     let product_hash = hasher.finalize_boxed();
-    info!("Hash: {:x}", HexSlice(&product_hash));
+    let product_hash = format!("{:x}", HexSlice(&product_hash));
+    info!("Hash: {product_hash}");
 
     let tokopedia_query = json!({
         "query": GQL_PDP_QUERY,
@@ -202,11 +203,22 @@ fn main() {
     let thread = std::thread::Builder::new()
         .name("MQTTEventLoop".to_string())
         .spawn(move || {
-            for (_i, notification) in connection.iter().enumerate() {
-                if let Err(e) = notification {
-                    panic!("Error {e}");
+            info!(target: "mqtt", "MQTT client running");
+            for notification in connection.iter() {
+                match notification {
+                    Ok(_) => {
+                        debug!(target: "mqtt", "Message = {:?}", notification);
+                    }
+                    Err(rumqttc::ConnectionError::MqttState(rumqttc::StateError::Io(e))) => {
+                        if e.kind() == std::io::ErrorKind::ConnectionAborted {
+                            info!(target: "mqtt", "All MQTT message has been pushed. Stopping gracefully...");
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        error!(target: "mqtt", "Unknown error - {e:?}");
+                    }
                 }
-                println!("Notification = {:?}", notification);
             }
         })
         .expect("Unable to spawn MQTT sender thread");
@@ -215,27 +227,25 @@ fn main() {
     client
         .publish(
             format!(
-                "{}/sensor/tkpd-{:x}/name/config",
-                args.ha_mqtt_discovery_topic,
-                HexSlice(&product_hash)
+                "{}/sensor/tkpd-{product_hash}/name/config",
+                args.ha_mqtt_discovery_topic
             ),
             rumqttc::QoS::AtLeastOnce,
             true,
             json!({
-                "origin": {
-                    "name": env!("CARGO_PKG_NAME"),
-                    "support_url": env!("CARGO_PKG_HOMEPAGE"),
-                    "sw_version": env!("CARGO_PKG_VERSION")
-                },
                 "device": {
-                    "identifiers": format!("tkpdprice-{:x}", HexSlice(&product_hash)),
-                    "serial_number": format!("{}/{}", shop_domain, product_key)
+                    "manufacturer": shop_domain,
+                    "model_id": product_name,
+                    "identifiers": format!("tkpdprice-{product_hash}"),
+                    "serial_number": format!("{product_hash}"),
+                    "sw_version": env!("CARGO_PKG_VERSION"),
+                    "name": product_name
                 },
                 "platform": "sensor",
                 "force_update": true,
-                "unique_id": format!("tkpdprice-{:x}-name", HexSlice(&product_hash)),
-                "command_topic": format!("tkpdprice/{:x}/name", HexSlice(&product_hash)),
-                "name": null
+                "unique_id": format!("tkpdprice-{product_hash}-name"),
+                "state_topic": format!("tkpdprice/{product_hash}/name"),
+                "name": "Name"
             })
             .to_string(),
         )
@@ -245,29 +255,27 @@ fn main() {
     client
         .publish(
             format!(
-                "{}/sensor/tkpd-{:x}/price/config",
-                args.ha_mqtt_discovery_topic,
-                HexSlice(&product_hash)
+                "{}/sensor/tkpd-{product_hash}/price/config",
+                args.ha_mqtt_discovery_topic
             ),
             rumqttc::QoS::AtLeastOnce,
             true,
             json!({
-                "origin": {
-                    "name": env!("CARGO_PKG_NAME"),
-                    "support_url": env!("CARGO_PKG_HOMEPAGE"),
-                    "sw_version": env!("CARGO_PKG_VERSION")
-                },
                 "device": {
-                    "identifiers": format!("tkpdprice-{:x}", HexSlice(&product_hash)),
-                    "serial_number": format!("{}/{}", shop_domain, product_key)
+                    "manufacturer": shop_domain,
+                    "model_id": product_name,
+                    "identifiers": format!("tkpdprice-{product_hash}"),
+                    "serial_number": format!("{product_hash}"),
+                    "sw_version": env!("CARGO_PKG_VERSION"),
+                    "name": product_name
                 },
                 "platform": "sensor",
                 "device_class": "monetary",
                 "unit_of_measurement": "IDR",
                 "force_update": true,
-                "unique_id": format!("tkpdprice-{:x}-price", HexSlice(&product_hash)),
-                "state_topic": format!("tkpdprice/{:x}/price", HexSlice(&product_hash)),
-                "name": null
+                "unique_id": format!("tkpdprice-{product_hash}-price"),
+                "state_topic": format!("tkpdprice/{product_hash}/price"),
+                "name": "Price"
             })
             .to_string(),
         )
@@ -277,27 +285,26 @@ fn main() {
     client
         .publish(
             format!(
-                "{}/sensor/tkpd-{:x}/stock/config",
+                "{}/sensor/tkpd-{product_hash}/stock/config",
                 args.ha_mqtt_discovery_topic,
-                HexSlice(&product_hash)
             ),
             rumqttc::QoS::AtLeastOnce,
             true,
             json!({
-                "origin": {
-                    "name": env!("CARGO_PKG_NAME"),
-                    "support_url": env!("CARGO_PKG_HOMEPAGE"),
-                    "sw_version": env!("CARGO_PKG_VERSION")
-                },
                 "device": {
-                    "identifiers": format!("tkpdprice-{:x}", HexSlice(&product_hash)),
-                    "serial_number": format!("{}/{}", shop_domain, product_key)
+                    "manufacturer": shop_domain,
+                    "model_id": product_name,
+                    "identifiers": format!("tkpdprice-{product_hash}"),
+                    "serial_number": format!("{product_hash}"),
+                    "sw_version": env!("CARGO_PKG_VERSION"),
+                    "name": product_name
                 },
                 "platform": "sensor",
                 "force_update": true,
-                "unique_id": format!("tkpdprice-{:x}-stock", HexSlice(&product_hash)),
-                "state_topic": format!("tkpdprice/{:x}/stock", HexSlice(&product_hash)),
-                "name": null
+                "unique_id": format!("tkpdprice-{product_hash}-stock"),
+                "state_topic": format!("tkpdprice/{product_hash}/stock"),
+                "icon": "mdi:numeric",
+                "name": "Stock"
             })
             .to_string(),
         )
@@ -306,7 +313,7 @@ fn main() {
     // Send data
     client
         .publish(
-            format!("tkpdprice/{:x}/name", HexSlice(&product_hash)),
+            format!("tkpdprice/{product_hash}/name"),
             rumqttc::QoS::AtLeastOnce,
             true,
             product_name,
@@ -314,7 +321,7 @@ fn main() {
         .expect("Unable to update name value");
     client
         .publish(
-            format!("tkpdprice/{:x}/price", HexSlice(&product_hash)),
+            format!("tkpdprice/{product_hash}/price"),
             rumqttc::QoS::AtLeastOnce,
             true,
             product_price.to_string(),
@@ -322,7 +329,7 @@ fn main() {
         .expect("Unable to update price value");
     client
         .publish(
-            format!("tkpdprice/{:x}/stock", HexSlice(&product_hash)),
+            format!("tkpdprice/{product_hash}/stock"),
             rumqttc::QoS::AtLeastOnce,
             true,
             product_stock.to_string(),

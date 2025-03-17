@@ -1,8 +1,9 @@
 [package]
 name = "ha-tkpd"
 description = "Track Tokopedia prices on Home Asssistant via MQTT"
-repository = "https://github.com/angeloanan/ha-tkpd-tracker"
+homepage = "https://github.com/angeloanan/ha-tkpd-tracker"
 
+repository = "https://github.com/angeloanan/ha-tkpd-tracker"
 version = "0.1.0"
 edition = "2024"
 
