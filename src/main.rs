@@ -167,12 +167,16 @@ fn main() {
     };
 
     println!("{}", data);
-    let product_name = data["name"].as_str().unwrap_or("");
-    let product_price = data["price"]["value"].as_i64().unwrap_or(-1);
+    let product_name = data["name"]
+        .as_str()
+        .expect("Unable to decode product name");
+    let product_price = data["price"]["value"]
+        .as_i64()
+        .expect("Unable to decode product price");
     let product_stock = data["stock"]["value"]
         .as_str()
         .and_then(|f| f.parse::<i64>().ok())
-        .unwrap_or(-1);
+        .expect("Unable to decode product stock");
 
     info!("Product name: {}", product_name);
     info!("Price: Rp. {product_price}");
