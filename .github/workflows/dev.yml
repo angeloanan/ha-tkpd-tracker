@@ -47,6 +47,6 @@ jobs:
             - name: Upload Build Artifacts
               uses: actions/upload-artifact@master
               with:
-                  name: bmap-server-${{ matrix.target }}
+                  name: ha-tkpd-${{ matrix.target }}
                   path: |
                       target/release/ha-tkpd*
