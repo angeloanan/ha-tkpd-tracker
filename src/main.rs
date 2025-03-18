@@ -380,6 +380,8 @@ fn main() {
                 "force_update": true,
                 "unique_id": format!("tkpdprice-{product_hash}-stock"),
                 "state_topic": format!("tkpdprice/{product_hash}/stock"),
+                "unit_of_measurement": "pcs",
+                "suggested_display_precision": 0,
                 "icon": "mdi:numeric",
                 "name": "Stock"
             })
