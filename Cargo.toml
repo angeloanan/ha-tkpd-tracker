@@ -9,6 +9,7 @@ edition = "2024"
 
 license = "GPL-3.0-or-later"
 keywords = ["tokopedia", "homeassistant", "tracker"]
+categories = ["automation"]
 
 [profile.release]
 panic = "abort"   # Strip expensive panic clean-up logic

@@ -5,6 +5,7 @@
 #![warn(clippy::perf)]
 #![warn(clippy::complexity)]
 #![warn(clippy::style)]
+#![allow(clippy::multiple_crate_versions)]
 
 use std::fmt;
 use std::io::Write;
@@ -61,11 +62,12 @@ fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let args = Args::parse();
-    if args.mqtt_password.is_some() && args.mqtt_username.is_none() {
-        panic!("MQTT Broker password is provided without any username. Aborting...");
-    }
+    assert!(
+        !(args.mqtt_password.is_some() && args.mqtt_username.is_none()),
+        "MQTT Broker password is provided without any username. Aborting..."
+    );
     if args.mqtt_username.is_some() && args.mqtt_password.is_none() {
-        warn!("MQTT Broker username is provided without password. Continuing...")
+        warn!("MQTT Broker username is provided without password. Continuing...");
     }
     let http_client = Client::builder()
         .use_rustls_tls()
@@ -151,7 +153,7 @@ fn main() {
             .get("message")
             .expect("Woi ada error tapi messagenya gaada goblok ini toped");
         panic!("Unable to fetch product data - {message}")
-    };
+    }
 
     let component = &body["data"]["pdpGetLayout"]["components"];
     let Some(data) = component
@@ -167,7 +169,7 @@ fn main() {
         )
     };
 
-    println!("{}", data);
+    println!("{data}");
     let product_name = data["name"]
         .as_str()
         .expect("Unable to decode product name");
@@ -193,7 +195,7 @@ fn main() {
         info!("Using provided MQTT credentials");
         mqtt_opts.set_credentials(
             args.mqtt_username.unwrap(),
-            args.mqtt_password.unwrap_or("".to_string()),
+            args.mqtt_password.unwrap_or(String::new()),
         );
     }
     mqtt_opts.set_keep_alive(Duration::from_secs(10));
@@ -342,7 +344,7 @@ fn main() {
         .join()
         .expect("MQTT Event loop exited abnormally. Messages might not be fully published!");
 
-    info!("Everything looks successful. Exiting...")
+    info!("Everything looks successful. Exiting...");
 }
 
 // https://stackoverflow.com/questions/27650312/show-u8-slice-in-hex-representation
