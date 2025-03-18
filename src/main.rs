@@ -6,6 +6,7 @@
 #![warn(clippy::complexity)]
 #![warn(clippy::style)]
 #![allow(clippy::multiple_crate_versions)]
+#![allow(clippy::too_many_lines)]
 
 use std::fmt;
 use std::io::Write;
@@ -50,6 +51,10 @@ struct Args {
     /// HA MQTT autodiscover topic
     #[arg(long("topic"), short('t'), default_value = "homeassistant")]
     ha_mqtt_discovery_topic: String,
+
+    /// When set, deletes existing data & connection from HA
+    #[arg(long("delete"), short('d'))]
+    unretain: bool,
 }
 
 const TKPD_GQL_ENDPOINT: &str = "https://gql.tokopedia.com/graphql/PDPGetLayoutQuery";
@@ -69,6 +74,9 @@ fn main() {
     if args.mqtt_username.is_some() && args.mqtt_password.is_none() {
         warn!("MQTT Broker username is provided without password. Continuing...");
     }
+
+    // Initialize HTTP & MQTT client
+
     let http_client = Client::builder()
         .use_rustls_tls()
         .user_agent(USER_AGENT_VALUE)
@@ -76,6 +84,48 @@ fn main() {
         .timeout(Duration::from_secs(10))
         .build()
         .unwrap();
+
+    let mut mqtt_opts = MqttOptions::new(
+        format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
+        args.mqtt_server,
+        args.mqtt_port,
+    );
+
+    if args.mqtt_username.is_some() {
+        info!(target: "mqtt", "Using provided credentials");
+        mqtt_opts.set_credentials(
+            args.mqtt_username.unwrap(),
+            args.mqtt_password.unwrap_or(String::new()),
+        );
+    }
+    mqtt_opts.set_keep_alive(Duration::from_secs(10));
+
+    let (mqtt_client, mut mqtt_connection) = rumqttc::Client::new(mqtt_opts, 2);
+
+    let mqtt_thread = std::thread::Builder::new()
+            .name("MQTTEventLoop".to_string())
+            .spawn(move || {
+                info!(target: "mqtt", "MQTT client running");
+                for notification in mqtt_connection.iter() {
+                    match notification {
+                        Ok(_) => {
+                            debug!(target: "mqtt", "Message = {:?}", notification);
+                        }
+                        Err(rumqttc::ConnectionError::MqttState(rumqttc::StateError::Io(e))) => {
+                            if e.kind() == std::io::ErrorKind::ConnectionAborted {
+                                info!(target: "mqtt", "All MQTT message has been pushed. Stopping gracefully...");
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            error!(target: "mqtt", "Unknown error - {e:?}");
+                        }
+                    }
+                }
+            })
+            .expect("Unable to spawn MQTT sender thread");
+
+    // Continue processing data
 
     let url = match reqwest::Url::parse(&args.url) {
         Ok(a) => a,
@@ -89,7 +139,7 @@ fn main() {
         .host_str()
         .is_none_or(|u| u != "tokopedia.com" && u != "www.tokopedia.com")
     {
-        println!("{:?}", url.host_str());
+        error!("Parsed URL host: {:?}", url.host_str());
         panic!("Wrong URL - This tool currently only supports tokopedia.com urls")
     }
     let Some(mut path_segment) = url.path_segments() else {
@@ -102,15 +152,91 @@ fn main() {
         panic!("Wrong URL format - Product key is empty. Did you copy a product URL?")
     };
 
-    info!("Shop: {shop_domain}");
-    info!("Product key: {product_key}");
+    info!("Parsed shop domain: {shop_domain}");
+    info!("Parsed product key: {product_key}");
 
     let mut hasher = Blake2sVar::new(4).unwrap();
     hasher.write_all(shop_domain.as_bytes()).unwrap();
     hasher.write_all(product_key.as_bytes()).unwrap();
     let product_hash = hasher.finalize_boxed();
     let product_hash = format!("{:x}", HexSlice(&product_hash));
-    info!("Hash: {product_hash}");
+    info!("HA Object hash: {product_hash}");
+
+    // TODO: Split this
+    // If only unretain, special handling
+    if args.unretain {
+        warn!(
+            "DELETE FLAG IS SET - Deleting Home Assistant device and its data from MQTT in 10 seconds..."
+        );
+        std::thread::sleep(Duration::from_secs(10));
+
+        warn!("Delete commencing...");
+        mqtt_client
+            .publish(
+                format!(
+                    "{}/sensor/tkpd-{product_hash}/name/config",
+                    args.ha_mqtt_discovery_topic
+                ),
+                rumqttc::QoS::AtLeastOnce,
+                true,
+                [],
+            )
+            .expect("Unable to delete HA Product Name Config");
+        mqtt_client
+            .publish(
+                format!(
+                    "{}/sensor/tkpd-{product_hash}/price/config",
+                    args.ha_mqtt_discovery_topic
+                ),
+                rumqttc::QoS::AtLeastOnce,
+                true,
+                [],
+            )
+            .expect("Unable to delete HA Product Price Config");
+        mqtt_client
+            .publish(
+                format!(
+                    "{}/sensor/tkpd-{product_hash}/stock/config",
+                    args.ha_mqtt_discovery_topic
+                ),
+                rumqttc::QoS::AtLeastOnce,
+                true,
+                [],
+            )
+            .expect("Unable to delete HA Product Stock Config");
+        mqtt_client
+            .publish(
+                format!("tkpdprice/{product_hash}/name"),
+                rumqttc::QoS::AtLeastOnce,
+                true,
+                [],
+            )
+            .expect("Unable to delete item name value");
+        mqtt_client
+            .publish(
+                format!("tkpdprice/{product_hash}/price"),
+                rumqttc::QoS::AtLeastOnce,
+                true,
+                [],
+            )
+            .expect("Unable to delete item price value");
+        mqtt_client
+            .publish(
+                format!("tkpdprice/{product_hash}/stock"),
+                rumqttc::QoS::AtLeastOnce,
+                true,
+                [],
+            )
+            .expect("Unable to delete item stock value");
+        mqtt_client.disconnect().expect("Unable to disconnect mqtt");
+
+        mqtt_thread
+            .join()
+            .expect("MQTT Event loop exited abnormally. Messages might not be fully published!");
+
+        info!("HA Device and its data has been deleted successfully. Thanks for using me!");
+        return;
+    }
 
     let tokopedia_query = json!({
         "query": GQL_PDP_QUERY,
@@ -185,48 +311,8 @@ fn main() {
     info!("Price: Rp. {product_price}");
     info!("Stock: {product_stock}");
 
-    let mut mqtt_opts = MqttOptions::new(
-        format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
-        args.mqtt_server,
-        args.mqtt_port,
-    );
-
-    if args.mqtt_username.is_some() {
-        info!("Using provided MQTT credentials");
-        mqtt_opts.set_credentials(
-            args.mqtt_username.unwrap(),
-            args.mqtt_password.unwrap_or(String::new()),
-        );
-    }
-    mqtt_opts.set_keep_alive(Duration::from_secs(10));
-
-    let (client, mut connection) = rumqttc::Client::new(mqtt_opts, 2);
-
-    let thread = std::thread::Builder::new()
-        .name("MQTTEventLoop".to_string())
-        .spawn(move || {
-            info!(target: "mqtt", "MQTT client running");
-            for notification in connection.iter() {
-                match notification {
-                    Ok(_) => {
-                        debug!(target: "mqtt", "Message = {:?}", notification);
-                    }
-                    Err(rumqttc::ConnectionError::MqttState(rumqttc::StateError::Io(e))) => {
-                        if e.kind() == std::io::ErrorKind::ConnectionAborted {
-                            info!(target: "mqtt", "All MQTT message has been pushed. Stopping gracefully...");
-                            break;
-                        }
-                    }
-                    Err(e) => {
-                        error!(target: "mqtt", "Unknown error - {e:?}");
-                    }
-                }
-            }
-        })
-        .expect("Unable to spawn MQTT sender thread");
-
     // Product name
-    client
+    mqtt_client
         .publish(
             format!(
                 "{}/sensor/tkpd-{product_hash}/name/config",
@@ -254,7 +340,7 @@ fn main() {
         .expect("Unable to send monetary config");
 
     // Product price
-    client
+    mqtt_client
         .publish(
             format!(
                 "{}/sensor/tkpd-{product_hash}/price/config",
@@ -284,7 +370,7 @@ fn main() {
         .expect("Unable to send monetary config");
 
     // Product stock
-    client
+    mqtt_client
         .publish(
             format!(
                 "{}/sensor/tkpd-{product_hash}/stock/config",
@@ -313,7 +399,7 @@ fn main() {
         .expect("Unable to send stock config");
 
     // Send data
-    client
+    mqtt_client
         .publish(
             format!("tkpdprice/{product_hash}/name"),
             rumqttc::QoS::AtLeastOnce,
@@ -321,7 +407,7 @@ fn main() {
             product_name,
         )
         .expect("Unable to update name value");
-    client
+    mqtt_client
         .publish(
             format!("tkpdprice/{product_hash}/price"),
             rumqttc::QoS::AtLeastOnce,
@@ -329,7 +415,7 @@ fn main() {
             product_price.to_string(),
         )
         .expect("Unable to update price value");
-    client
+    mqtt_client
         .publish(
             format!("tkpdprice/{product_hash}/stock"),
             rumqttc::QoS::AtLeastOnce,
@@ -338,9 +424,11 @@ fn main() {
         )
         .expect("Unable to update price value");
 
-    client.disconnect().expect("Unable to disconnect from MQTT");
+    mqtt_client
+        .disconnect()
+        .expect("Unable to disconnect from MQTT");
 
-    thread
+    mqtt_thread
         .join()
         .expect("MQTT Event loop exited abnormally. Messages might not be fully published!");
 

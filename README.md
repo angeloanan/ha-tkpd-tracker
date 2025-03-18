@@ -47,6 +47,7 @@ Options:
   -s, --server <MQTT_SERVER>             MQTT Broker host or IP [default: localhost]
   -x, --port <MQTT_PORT>                 MQTT Broker port [default: 1883]
   -t, --topic <HA_MQTT_DISCOVERY_TOPIC>  HA MQTT autodiscover topic [default: homeassistant]
+  -d, --delete                           When set, deletes existing data & connection from HA
   -h, --help                             Print help
   -V, --version                          Print version
 ```
