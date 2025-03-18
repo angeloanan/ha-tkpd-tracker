@@ -311,6 +311,16 @@ fn main() {
     info!("Price: Rp. {product_price}");
     info!("Stock: {product_stock}");
 
+    let device_info = json!({
+        "manufacturer": shop_domain,
+        "model_id": product_name,
+        "identifiers": format!("tkpdprice-{product_hash}"),
+        "serial_number": format!("{product_hash}"),
+        "sw_version": env!("CARGO_PKG_VERSION"),
+        "configuration_url": format!("https://tokopedia.com/{shop_domain}/{product_key}"),
+        "name": product_name
+    });
+
     // Product name
     mqtt_client
         .publish(
@@ -321,14 +331,7 @@ fn main() {
             rumqttc::QoS::AtLeastOnce,
             true,
             json!({
-                "device": {
-                    "manufacturer": shop_domain,
-                    "model_id": product_name,
-                    "identifiers": format!("tkpdprice-{product_hash}"),
-                    "serial_number": format!("{product_hash}"),
-                    "sw_version": env!("CARGO_PKG_VERSION"),
-                    "name": product_name
-                },
+                "device": device_info,
                 "platform": "sensor",
                 "force_update": true,
                 "unique_id": format!("tkpdprice-{product_hash}-name"),
@@ -349,14 +352,7 @@ fn main() {
             rumqttc::QoS::AtLeastOnce,
             true,
             json!({
-                "device": {
-                    "manufacturer": shop_domain,
-                    "model_id": product_name,
-                    "identifiers": format!("tkpdprice-{product_hash}"),
-                    "serial_number": format!("{product_hash}"),
-                    "sw_version": env!("CARGO_PKG_VERSION"),
-                    "name": product_name
-                },
+                "device": device_info,
                 "platform": "sensor",
                 "device_class": "monetary",
                 "unit_of_measurement": "IDR",
@@ -379,14 +375,7 @@ fn main() {
             rumqttc::QoS::AtLeastOnce,
             true,
             json!({
-                "device": {
-                    "manufacturer": shop_domain,
-                    "model_id": product_name,
-                    "identifiers": format!("tkpdprice-{product_hash}"),
-                    "serial_number": format!("{product_hash}"),
-                    "sw_version": env!("CARGO_PKG_VERSION"),
-                    "name": product_name
-                },
+                "device": device_info,
                 "platform": "sensor",
                 "force_update": true,
                 "unique_id": format!("tkpdprice-{product_hash}-stock"),
