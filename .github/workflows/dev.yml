@@ -48,4 +48,4 @@ jobs:
         with:
           name: ha-tkpd-${{ matrix.target }}
           path: |
-            target/release/ha-tkpd*
+            target/${{ matrix.target }}/release/ha-tkpd
