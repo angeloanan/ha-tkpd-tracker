@@ -43,7 +43,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@master
-      - run: "sudo apt get update && sudo apt install musl-tools" # Ugly but h
+      - run: "sudo apt update && sudo apt install musl-tools" # Ugly but h
         if: matrix.musl
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
