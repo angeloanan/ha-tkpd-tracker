@@ -43,6 +43,8 @@ jobs:
       - uses: actions/checkout@master
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
+        with:
+          target: ${{ matrix.target }}
 
       - name: Rust Dependency Cache
         uses: Swatinem/rust-cache@master
@@ -51,7 +53,7 @@ jobs:
         uses: clechasseur/rs-cargo@v3
         with:
           command: build
-          args: --release
+          args: --release --target ${{ matrix.target }}
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@master
