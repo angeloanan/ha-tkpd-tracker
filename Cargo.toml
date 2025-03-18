@@ -32,4 +32,7 @@ reqwest = { version = "0.12.14", features = [
 rumqttc = "0.24.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-openssl = { version = "*", features = ["vendored"] } # https://blog.davidvassallo.me/2021/06/10/lessons-learned-building-statically-linked-rust-binaries-openssl/
+
+# https://blog.davidvassallo.me/2021/06/10/lessons-learned-building-statically-linked-rust-binaries-openssl/
+[target.'cfg(target_env = "musl")'.dependencies]
+openssl = { version = "*", features = ["vendored"] }
