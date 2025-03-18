@@ -16,9 +16,17 @@ jobs:
           - name: linux-amd64
             runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+          - name: linux-amd64-musl
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            musl: true
           - name: linux-arm64
             runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
+          - name: linux-arm64-musl
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            musl: true
           - name: macos-amd64
             runner: macos-latest
             target: x86_64-apple-darwin
@@ -28,6 +36,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@master
+      - name: "Install musl dependencies" # https://blog.davidvassallo.me/2021/06/10/lessons-learned-building-statically-linked-rust-binaries-openssl/
+        run: "sudo apt update && sudo apt install -y pkg-config musl-tools libssl-dev"
+        if: matrix.musl
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
