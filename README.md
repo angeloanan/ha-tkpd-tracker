@@ -16,9 +16,6 @@ Sadly, this cultural behavior has been abused by most, if-not all, shop and sell
 
 A friend of mine wanted to track the prices of some items and figured that they wouldn't be able to since [Tokopedia](https://tokopedia.com), the largest e-commerce platform in Indonesia, does not provide the capability to do so[^2]. So after the repeated pain of missing said discounts, they reached out to me and I agreed to build this tool.
 
-[^1]: Realistically, the price of these items are gauged beforehand
-[^2]: On the time I'm writing this, you can only get notifications if an item is back on stock. Such notification is not separated with other marketing / promotions related notification
-
 ## Usage
 
 This guide assumes that you have **Home Assistant** and an **MQTT broker** connected to it.
@@ -93,3 +90,7 @@ cargo build --release
 Contributions are welcome, though not expected and not guaranteed to be merged; this is a personal project after all.
 
 Feel free to fork and adapt this project to your needs.
+
+[^1]: Realistically, the price of these items are gouged beforehand
+[^2]: On the time I'm writing this, you can only get notifications if an item is back on stock. Such notification is not separated with other marketing / promotions related notification
+
