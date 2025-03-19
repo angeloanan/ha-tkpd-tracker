@@ -215,7 +215,18 @@ fn main() {
                 true,
                 [],
             )
-            .expect("Unable to delete HA Diagnostic Config");
+            .expect("Unable to delete HA updated at Config");
+        mqtt_client
+            .publish(
+                format!(
+                    "{}/sensor/tkpd-{product_hash}/scraper-version/config",
+                    args.ha_mqtt_discovery_topic
+                ),
+                rumqttc::QoS::AtLeastOnce,
+                true,
+                [],
+            )
+            .expect("Unable to delete HA scraper version Config");
         mqtt_client
             .publish(
                 format!("tkpdprice/{product_hash}/name"),
@@ -247,7 +258,15 @@ fn main() {
                 true,
                 [],
             )
-            .expect("Unable to delete diagnostic value");
+            .expect("Unable to delete last updated timestamp value");
+        mqtt_client
+            .publish(
+                format!("tkpdprice/{product_hash}/scraper-version"),
+                rumqttc::QoS::AtLeastOnce,
+                true,
+                [],
+            )
+            .expect("Unable to delete scraper version value");
         mqtt_client.disconnect().expect("Unable to disconnect mqtt");
 
         mqtt_thread
@@ -429,7 +448,28 @@ fn main() {
             })
             .to_string(),
         )
-        .expect("Unable to send diagnostic config");
+        .expect("Unable to send updated at config");
+    mqtt_client
+        .publish(
+            format!(
+                "{}/sensor/tkpd-{product_hash}/scraper-version/config",
+                args.ha_mqtt_discovery_topic
+            ),
+            rumqttc::QoS::AtLeastOnce,
+            true,
+            json!({
+                "device": device_info,
+                "platform": "sensor",
+                "entity_category": "diagnostic",
+                "force_update": false,
+                "icon": "mdi:cogs",
+                "unique_id": format!("tkpdprice-{product_hash}-scraperversion"),
+                "state_topic": format!("tkpdprice/{product_hash}/scraper-version"),
+                "name": "Scraper version"
+            })
+            .to_string(),
+        )
+        .expect("Unable to send scraper version config");
 
     // Send data
     mqtt_client
@@ -463,7 +503,15 @@ fn main() {
             true,
             Utc::now().to_rfc3339(),
         )
-        .expect("Unable to update diagnostic data");
+        .expect("Unable to update last updated at data");
+    mqtt_client
+        .publish(
+            format!("tkpdprice/{product_hash}/scraper-version"),
+            rumqttc::QoS::AtLeastOnce,
+            true,
+            env!("CARGO_PKG_VERSION"),
+        )
+        .expect("Unable to update scraper version data");
 
     mqtt_client
         .disconnect()
