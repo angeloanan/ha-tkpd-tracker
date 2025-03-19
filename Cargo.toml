@@ -22,7 +22,7 @@ strip = true      # Remove debug symbols
 blake2 = "0.10.6"
 chrono = { version = "0.4.40", default-features = false, features = ["now"]}
 clap = { version = "4.5.32", features = ["derive"] }
-env_logger = "0.11.7"
+env_logger = { version = "0.11.7", default-features = false, features = ["auto-color", "humantime"]}
 log = "0.4.26"
 reqwest = { version = "0.12.14", features = [
     "blocking",
