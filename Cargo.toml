@@ -20,6 +20,7 @@ strip = true      # Remove debug symbols
 
 [dependencies]
 blake2 = "0.10.6"
+chrono = { version = "0.4.40", default-features = false, features = ["now"]}
 clap = { version = "4.5.32", features = ["derive"] }
 env_logger = "0.11.7"
 log = "0.4.26"

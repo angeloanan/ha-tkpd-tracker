@@ -14,6 +14,7 @@ use std::time::Duration;
 
 use blake2::Blake2sVar;
 use blake2::digest::VariableOutput;
+use chrono::Utc;
 use clap::{Parser, ValueHint, command};
 use log::{debug, error, info, trace, warn};
 use reqwest::blocking::Client;
@@ -206,6 +207,17 @@ fn main() {
             .expect("Unable to delete HA Product Stock Config");
         mqtt_client
             .publish(
+                format!(
+                    "{}/sensor/tkpd-{product_hash}/updated-at/config",
+                    args.ha_mqtt_discovery_topic
+                ),
+                rumqttc::QoS::AtLeastOnce,
+                true,
+                [],
+            )
+            .expect("Unable to delete HA Diagnostic Config");
+        mqtt_client
+            .publish(
                 format!("tkpdprice/{product_hash}/name"),
                 rumqttc::QoS::AtLeastOnce,
                 true,
@@ -228,6 +240,14 @@ fn main() {
                 [],
             )
             .expect("Unable to delete item stock value");
+        mqtt_client
+            .publish(
+                format!("tkpdprice/{product_hash}/updated-at"),
+                rumqttc::QoS::AtLeastOnce,
+                true,
+                [],
+            )
+            .expect("Unable to delete diagnostic value");
         mqtt_client.disconnect().expect("Unable to disconnect mqtt");
 
         mqtt_thread
@@ -388,6 +408,28 @@ fn main() {
             .to_string(),
         )
         .expect("Unable to send stock config");
+    mqtt_client
+        .publish(
+            format!(
+                "{}/sensor/tkpd-{product_hash}/updated-at/config",
+                args.ha_mqtt_discovery_topic
+            ),
+            rumqttc::QoS::AtLeastOnce,
+            true,
+            json!({
+                "device": device_info,
+                "platform": "sensor",
+                "entity_category": "diagnostic",
+                "device_class": "timestamp",
+                "force_update": false,
+                "enabled_by_default": true,
+                "unique_id": format!("tkpdprice-{product_hash}-updatedat"),
+                "state_topic": format!("tkpdprice/{product_hash}/updated-at"),
+                "name": "Last update"
+            })
+            .to_string(),
+        )
+        .expect("Unable to send diagnostic config");
 
     // Send data
     mqtt_client
@@ -414,6 +456,14 @@ fn main() {
             product_stock.to_string(),
         )
         .expect("Unable to update price value");
+    mqtt_client
+        .publish(
+            format!("tkpdprice/{product_hash}/updated-at"),
+            rumqttc::QoS::AtLeastOnce,
+            true,
+            Utc::now().to_rfc3339(),
+        )
+        .expect("Unable to update diagnostic data");
 
     mqtt_client
         .disconnect()
