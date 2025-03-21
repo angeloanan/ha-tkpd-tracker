@@ -353,6 +353,7 @@ fn main() {
     let device_info = json!({
         "manufacturer": shop_domain,
         "model_id": product_name,
+        "model": "ha-tkpd",
         "identifiers": format!("tkpdprice-{product_hash}"),
         "serial_number": format!("{product_hash}"),
         "sw_version": env!("CARGO_PKG_VERSION"),
