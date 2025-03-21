@@ -6,6 +6,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
 
 name: Development Build
 jobs:
@@ -41,15 +43,14 @@ jobs:
       - name: "Install musl dependencies" # https://blog.davidvassallo.me/2021/06/10/lessons-learned-building-statically-linked-rust-binaries-openssl/
         run: "sudo apt update && sudo apt install -y pkg-config musl-tools libssl-dev"
         if: matrix.musl
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.8
+
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
           target: ${{ matrix.target }}
-
-      - name: Rust Dependency Cache
-        uses: Swatinem/rust-cache@master
-        with:
-          shared-key: ${{ matrix.target }}
 
       - name: Build
         uses: clechasseur/rs-cargo@v3
