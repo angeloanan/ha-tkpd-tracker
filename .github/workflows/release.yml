@@ -79,9 +79,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ha-tkpd-aarch64-apple-darwin
-            ha-tkpd-x86_64-apple-darwin
-            ha-tkpd-x86_64-unknown-linux-gnu
-            ha-tkpd-x86_64-unknown-linux-musl
-            ha-tkpd-aarch64-unknown-linux-gnu
-            ha-tkpd-aarch64-unknown-linux-musl
+            ha-tkpd-tracker/ha-tkpd-aarch64-apple-darwin
+            ha-tkpd-tracker/ha-tkpd-x86_64-apple-darwin
+            ha-tkpd-tracker/ha-tkpd-x86_64-unknown-linux-gnu
+            ha-tkpd-tracker/ha-tkpd-x86_64-unknown-linux-musl
+            ha-tkpd-tracker/ha-tkpd-aarch64-unknown-linux-gnu
+            ha-tkpd-tracker/ha-tkpd-aarch64-unknown-linux-musl
