@@ -6,9 +6,15 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  id-token: write
+  contents: read
+  attestations: write
+
+name: Build & Release
 jobs:
   build:
-    name: Build ${{ matrix.target }}
+    name: ${{ matrix.name }}
     strategy:
       fail-fast: true
       matrix:
@@ -44,21 +50,23 @@ jobs:
         with:
           target: ${{ matrix.target }}
 
-      - name: Rust Dependency Cache
-        uses: Swatinem/rust-cache@master
-
       - name: Build
         uses: clechasseur/rs-cargo@v3
         with:
           command: build
           args: --release --target ${{ matrix.target }}
 
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "target/${{ matrix.target }}/release/ha-tkpd"
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@master
         with:
           name: ha-tkpd-${{ matrix.target }}
           path: |
-            target/${{ matrix.target }}/release/ha-tkpd*
+            target/${{ matrix.target }}/release/ha-tkpd
 
   release:
     name: Create release
@@ -66,9 +74,14 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - name: Download Build Artifacts
-        uses: actions/download-artifact@master
+        uses: actions/download-artifact@v4
       - name: Create a Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ha-tkpd*
+            ha-tkpd-aarch64-apple-darwin
+            ha-tkpd-x86_64-apple-darwin
+            ha-tkpd-x86_64-unknown-linux-gnu
+            ha-tkpd-x86_64-unknown-linux-musl
+            ha-tkpd-aarch64-unknown-linux-gnu
+            ha-tkpd-aarch64-unknown-linux-musl
